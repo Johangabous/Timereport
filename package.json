@@ -1,0 +1,25 @@
+{
+  "name": "faktmall-tidsrapport",
+  "version": "1.0.0",
+  "description": "Live-dashboard: timmar per projekt (#nr) och kalender från iCal-flöden",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Johangabous/faktmall.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Johangabous/faktmall/issues"
+  },
+  "homepage": "https://github.com/Johangabous/faktmall#readme",
+  "dependencies": {
+    "node-ical": "^0.27.3"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

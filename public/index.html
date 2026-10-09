@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tidsrapport per projekt</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    color-scheme: light;
+    --surface-0: #f4f4f1;
+    --surface-1: #fcfcfb;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #6f6e69;
+    --grid: #e1e0d9;
+    --border: rgba(11, 11, 11, 0.10);
+    --accent: #2a78d6;
+    --error-bg: #fdecec;
+    --error-text: #a02020;
+    --row-hover: rgba(42, 120, 214, 0.07);
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+    --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+    --s-other: #a3a29b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-0: #111110;
+      --surface-1: #1a1a19;
+      --text-primary: #f0efec;
+      --text-secondary: #c3c2b7;
+      --text-muted: #9a998f;
+      --grid: #2c2c2a;
+      --border: rgba(255, 255, 255, 0.10);
+      --accent: #3987e5;
+      --error-bg: #3a1a1a;
+      --error-text: #f2a3a3;
+      --row-hover: rgba(57, 135, 229, 0.12);
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+      --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+      --s-other: #6f6e69;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-0: #111110;
+    --surface-1: #1a1a19;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #9a998f;
+    --grid: #2c2c2a;
+    --border: rgba(255, 255, 255, 0.10);
+    --accent: #3987e5;
+    --error-bg: #3a1a1a;
+    --error-text: #f2a3a3;
+    --row-hover: rgba(57, 135, 229, 0.12);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --s-other: #6f6e69;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--surface-0);
+    color: var(--text-primary);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+  h1 { font-size: 22px; margin: 0; }
+  h2 { font-size: 15px; margin: 0 0 12px; }
+  .muted { color: var(--text-muted); }
+  .status { font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--s3); }
+  .dot.loading { background: var(--s4); }
+  .dot.error { background: var(--s8); }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 20px 0; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface-1); }
+  .seg button { border: 0; background: none; color: var(--text-secondary); padding: 7px 12px; font: inherit; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  input[type="date"], input[type="search"] {
+    font: inherit; color: var(--text-primary); background: var(--surface-1);
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px;
+  }
+  label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--text-secondary); cursor: pointer; }
+
+  .errors { background: var(--error-bg); color: var(--error-text); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; }
+  .errors:empty { display: none; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .tile, .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .tile .label { color: var(--text-secondary); font-size: 13px; }
+  .tile .value { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 4px; }
+  .card { margin-bottom: 16px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  .bars { display: grid; grid-template-columns: minmax(90px, max-content) 1fr minmax(56px, max-content); gap: 6px 12px; align-items: center; }
+  .bars .name { color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  .bars .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+  .track { display: flex; gap: 2px; height: 18px; cursor: pointer; }
+  .track > div { height: 100%; min-width: 2px; }
+  .track > div:last-child { border-radius: 0 4px 4px 0; }
+  .track:hover > div { opacity: .55; }
+  .track:hover > div:hover { opacity: 1; }
+
+  .tooltip {
+    position: fixed; pointer-events: none; z-index: 10; display: none;
+    background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.15);
+  }
+  .tooltip b { font-variant-numeric: tabular-nums; }
+
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--surface-1); }
+  thead th { color: var(--text-secondary); font-weight: 500; cursor: pointer; user-select: none; }
+  thead th .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover td { background: var(--row-hover); }
+  tbody tr.selected td { background: var(--row-hover); font-weight: 600; }
+  tfoot td { font-weight: 600; border-bottom: 0; }
+  td.zero { color: var(--text-muted); }
+
+  .detail-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .detail-head button { font: inherit; background: none; border: 0; color: var(--accent); cursor: pointer; }
+  .detail th, .detail td { text-align: left; }
+  .detail th:last-child, .detail td:last-child { text-align: right; }
+  .detail td:nth-child(3) { white-space: normal; }
+  .empty { color: var(--text-muted); padding: 24px 0; text-align: center; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Tidsrapport per projekt</h1>
+    <div class="status"><span class="dot" id="dot"></span><span id="status">Laddar…</span></div>
+  </header>
+
+  <div class="filters">
+    <div class="seg" id="presets" role="group" aria-label="Period">
+      <button data-preset="thisWeek">Denna vecka</button>
+      <button data-preset="lastWeek">Förra veckan</button>
+      <button data-preset="thisMonth">Denna månad</button>
+      <button data-preset="lastMonth">Förra månaden</button>
+      <button data-preset="thisYear">I år</button>
+    </div>
+    <input type="date" id="from" aria-label="Från">
+    <span class="muted">–</span>
+    <input type="date" id="to" aria-label="Till">
+    <input type="search" id="search" placeholder="Sök projektnr…" aria-label="Sök projekt">
+    <label class="check"><input type="checkbox" id="showNone"> Visa tid utan projekt</label>
+  </div>
+
+  <div class="errors" id="errors"></div>
+
+  <section class="tiles">
+    <div class="tile"><div class="label">Timmar på projekt</div><div class="value" id="kpiProject">–</div></div>
+    <div class="tile"><div class="label">Antal projekt</div><div class="value" id="kpiCount">–</div></div>
+    <div class="tile"><div class="label">Timmar utan projektnr</div><div class="value" id="kpiNone">–</div></div>
+    <div class="tile"><div class="label">Kalendrar</div><div class="value" id="kpiCals">–</div></div>
+  </section>
+
+  <section class="card">
+    <h2>Timmar per projekt</h2>
+    <div class="legend" id="legend"></div>
+    <div class="bars" id="bars"></div>
+  </section>
+
+  <section class="card">
+    <h2>Projekt × kalender</h2>
+    <div class="table-wrap"><table id="matrix"></table></div>
+  </section>
+
+  <section class="card detail" id="detail" hidden>
+    <div class="detail-head">
+      <h2 id="detailTitle"></h2>
+      <button id="detailClose">Stäng</button>
+    </div>
+    <div class="table-wrap"><table id="detailTable"></table></div>
+  </section>
+</main>
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const REFRESH_MS = 60_000;
+const MAX_SERIES = 8; // fler kalendrar än så slås ihop till "Övriga" i diagrammet
+
+const $ = (id) => document.getElementById(id);
+const state = { data: null, preset: 'thisWeek', sort: { key: 'total', dir: -1 }, selected: null };
+
+const fmtH = (h) => h.toLocaleString('sv-SE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' h';
+const fmtDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function presetRange(name) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  switch (name) {
+    case 'lastWeek': return [addDays(monday, -7), addDays(monday, -1)];
+    case 'thisMonth': return [new Date(today.getFullYear(), today.getMonth(), 1), new Date(today.getFullYear(), today.getMonth() + 1, 0)];
+    case 'lastMonth': return [new Date(today.getFullYear(), today.getMonth() - 1, 1), new Date(today.getFullYear(), today.getMonth(), 0)];
+    case 'thisYear': return [new Date(today.getFullYear(), 0, 1), new Date(today.getFullYear(), 11, 31)];
+    default: return [monday, addDays(monday, 6)];
+  }
+}
+
+function applyPreset(name) {
+  state.preset = name;
+  const [from, to] = presetRange(name);
+  $('from').value = fmtDay(from);
+  $('to').value = fmtDay(to);
+  for (const b of $('presets').children) b.setAttribute('aria-pressed', String(b.dataset.preset === name));
+  load();
+}
+
+// Färg följer kalendern (dess plats i konfigurationen), inte dess rangordning.
+function seriesFor(calendars) {
+  const own = calendars.length > MAX_SERIES ? MAX_SERIES - 1 : MAX_SERIES;
+  return calendars.map((name, i) => (i < own
+    ? { name, color: `var(--s${i + 1})` }
+    : { name: 'Övriga', color: 'var(--s-other)' }));
+}
+
+let inflight = null;
+async function load() {
+  const from = $('from').value, to = $('to').value;
+  if (!from || !to) return;
+  inflight?.abort();
+  inflight = new AbortController();
+  $('dot').className = 'dot loading';
+  $('status').textContent = 'Hämtar kalendrar…';
+  try {
+    const res = await fetch(`api/report?from=${from}&to=${to}`, { signal: inflight.signal });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    state.data = body;
+    render();
+    $('dot').className = body.errors.length ? 'dot error' : 'dot';
+    $('status').textContent = `Uppdaterad ${new Date(body.fetchedAt).toLocaleTimeString('sv-SE', { timeZone: body.timeZone })} · uppdateras varje minut`;
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    $('dot').className = 'dot error';
+    $('status').textContent = `Kunde inte hämta: ${err.message}`;
+  }
+}
+
+function visibleProjects() {
+  const d = state.data;
+  const q = $('search').value.trim().replace(/^#/, '');
+  return d.projects.filter((p) =>
+    (p.id !== d.noProjectKey || $('showNone').checked) && (!q || p.id.includes(q)));
+}
+
+function render() {
+  const d = state.data;
+  if (!d) return;
+  const series = seriesFor(d.calendars);
+  const none = d.projects.find((p) => p.id === d.noProjectKey);
+  const onProjects = d.projects.filter((p) => p.id !== d.noProjectKey);
+
+  $('errors').innerHTML = d.errors.map((e) => `Kunde inte läsa kalendern <b>${esc(e.calendar)}</b>: ${esc(e.error)}`).join('<br>');
+  $('kpiProject').textContent = fmtH(onProjects.reduce((s, p) => s + p.total, 0));
+  $('kpiCount').textContent = onProjects.length;
+  $('kpiNone').textContent = fmtH(none ? none.total : 0);
+  $('kpiCals').textContent = d.calendars.length;
+
+  const legendEntries = [...new Map(series.map((s) => [s.name, s])).values()];
+  $('legend').innerHTML = legendEntries.map((s) => `<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join('');
+
+  const projects = visibleProjects();
+  renderBars(projects, series);
+  renderMatrix(projects, series);
+  renderDetail();
+}
+
+const label = (p) => (p.id === state.data.noProjectKey ? p.id : `#${p.id}`);
+
+function renderBars(projects, series) {
+  const max = Math.max(0, ...projects.map((p) => p.total));
+  if (!projects.length) {
+    $('bars').innerHTML = '<div class="empty" style="grid-column:1/-1">Inga projekttimmar under perioden.</div>';
+    return;
+  }
+  $('bars').innerHTML = projects.map((p) => {
+    const segs = new Map();
+    state.data.calendars.forEach((cal, i) => {
+      const h = p.byCalendar[cal] || 0;
+      if (!h) return;
+      const s = series[i];
+      const prev = segs.get(s.name) || { ...s, hours: 0 };
+      prev.hours += h;
+      segs.set(s.name, prev);
+    });
+    const parts = [...segs.values()].map((s) =>
+      `<div style="width:${(s.hours / max) * 100}%;background:${s.color}" data-tip="${esc(label(p))}|${esc(s.name)}|${s.hours}|${p.total}"></div>`).join('');
+    return `<div class="name" data-project="${esc(p.id)}">${esc(label(p))}</div>
+      <div class="track" data-project="${esc(p.id)}">${parts}</div>
+      <div class="num">${fmtH(p.total)}</div>`;
+  }).join('');
+}
+
+function renderMatrix(projects, series) {
+  const d = state.data;
+  const { key, dir } = state.sort;
+  const val = (p) => (key === 'project' ? p.id : key === 'total' ? p.total : (p.byCalendar[key] || 0));
+  const rows = [...projects].sort((a, b) => {
+    const va = val(a), vb = val(b);
+    return (typeof va === 'string' ? va.localeCompare(vb, 'sv', { numeric: true }) : va - vb) * dir;
+  });
+  const arrow = (k) => (key === k ? (dir < 0 ? ' ↓' : ' ↑') : '');
+  const cell = (h) => (h ? `<td>${fmtH(h)}</td>` : '<td class="zero">–</td>');
+
+  const head = `<thead><tr><th data-sort="project">Projekt${arrow('project')}</th>${
+    d.calendars.map((c, i) => `<th data-sort="${esc(c)}"><span class="sw" style="background:${series[i].color}"></span>${esc(c)}${arrow(c)}</th>`).join('')
+  }<th data-sort="total">Totalt${arrow('total')}</th></tr></thead>`;
+  const body = rows.length
+    ? rows.map((p) => `<tr data-project="${esc(p.id)}" class="${p.id === state.selected ? 'selected' : ''}"><td>${esc(label(p))}</td>${
+        d.calendars.map((c) => cell(p.byCalendar[c] || 0)).join('')}<td>${fmtH(p.total)}</td></tr>`).join('')
+    : `<tr><td colspan="${d.calendars.length + 2}" class="empty">Inga projekttimmar under perioden.</td></tr>`;
+  const sum = (c) => rows.reduce((s, p) => s + (p.byCalendar[c] || 0), 0);
+  const foot = `<tfoot><tr><td>Summa</td>${d.calendars.map((c) => `<td>${fmtH(sum(c))}</td>`).join('')}<td>${
+    fmtH(rows.reduce((s, p) => s + p.total, 0))}</td></tr></tfoot>`;
+  $('matrix').innerHTML = head + body + foot;
+}
+
+function renderDetail() {
+  const d = state.data;
+  const id = state.selected;
+  const events = id ? d.events.filter((e) => e.project === id) : [];
+  $('detail').hidden = !id;
+  if (!id) return;
+  $('detailTitle').textContent = `${id === d.noProjectKey ? id : '#' + id} – ${events.length} händelser`;
+  const fmtDT = (s) => new Date(s).toLocaleString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: d.timeZone });
+  $('detailTable').innerHTML = `<thead><tr><th>Start</th><th>Kalender</th><th>Händelse</th><th>Timmar</th></tr></thead><tbody>${
+    events.map((e) => `<tr><td>${fmtDT(e.start)}</td><td>${esc(e.calendar)}</td><td>${esc(e.summary)}</td><td>${fmtH(e.hours)}</td></tr>`).join('')
+  }</tbody>`;
+}
+
+function select(id) {
+  state.selected = state.selected === id ? null : id;
+  render();
+  if (state.selected) $('detail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+$('presets').addEventListener('click', (e) => { if (e.target.dataset.preset) applyPreset(e.target.dataset.preset); });
+for (const id of ['from', 'to']) {
+  $(id).addEventListener('change', () => {
+    state.preset = null;
+    for (const b of $('presets').children) b.setAttribute('aria-pressed', 'false');
+    load();
+  });
+}
+$('search').addEventListener('input', render);
+$('showNone').addEventListener('change', render);
+$('detailClose').addEventListener('click', () => select(state.selected));
+$('bars').addEventListener('click', (e) => { const el = e.target.closest('[data-project]'); if (el) select(el.dataset.project); });
+$('matrix').addEventListener('click', (e) => {
+  const th = e.target.closest('th[data-sort]');
+  if (th) {
+    const k = th.dataset.sort;
+    state.sort = { key: k, dir: state.sort.key === k ? -state.sort.dir : (k === 'project' ? 1 : -1) };
+    return render();
+  }
+  const tr = e.target.closest('tr[data-project]');
+  if (tr) select(tr.dataset.project);
+});
+
+const tip = $('tooltip');
+$('bars').addEventListener('mousemove', (e) => {
+  const seg = e.target.closest('[data-tip]');
+  if (!seg) { tip.style.display = 'none'; return; }
+  const [proj, cal, h, total] = seg.dataset.tip.split('|');
+  tip.innerHTML = `${proj} · ${cal}<br><b>${fmtH(Number(h))}</b> <span class="muted">av ${fmtH(Number(total))}</span>`;
+  tip.style.display = 'block';
+  tip.style.left = Math.min(e.clientX + 12, window.innerWidth - tip.offsetWidth - 8) + 'px';
+  tip.style.top = (e.clientY + 14) + 'px';
+});
+$('bars').addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+
+// Följ med i tiden: en förinställd period (t.ex. "Denna vecka") räknas om vid varje uppdatering.
+setInterval(() => (state.preset ? applyPreset(state.preset) : load()), REFRESH_MS);
+applyPreset('thisWeek');
+</script>
+</body>
+</html>
