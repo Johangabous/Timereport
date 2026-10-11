@@ -73,6 +73,7 @@
   h2 { font-size: 15px; margin: 0 0 12px; }
   .muted { color: var(--text-muted); }
   .status { font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
+  .status .link { font: inherit; background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--s3); }
   .dot.loading { background: var(--s4); }
   .dot.error { background: var(--s8); }
@@ -141,7 +142,7 @@
 <main>
   <header>
     <h1>Tidsrapport per projekt</h1>
-    <div class="status"><span class="dot" id="dot"></span><span id="status">Laddar…</span></div>
+    <div class="status"><span class="dot" id="dot"></span><span id="status">Laddar…</span><button id="refresh" class="link">Uppdatera nu</button></div>
   </header>
 
   <div class="filters">
@@ -215,13 +216,13 @@ function presetRange(name) {
   }
 }
 
-function applyPreset(name) {
+function applyPreset(name, opts) {
   state.preset = name;
   const [from, to] = presetRange(name);
   $('from').value = fmtDay(from);
   $('to').value = fmtDay(to);
   for (const b of $('presets').children) b.setAttribute('aria-pressed', String(b.dataset.preset === name));
-  load();
+  load(opts);
 }
 
 // Färg följer kalendern (dess plats i konfigurationen), inte dess rangordning.
@@ -233,7 +234,8 @@ function seriesFor(calendars) {
 }
 
 let inflight = null;
-async function load() {
+// fresh: hämta kalendrarna direkt från källan i stället för serverns cache.
+async function load({ fresh = false } = {}) {
   const from = $('from').value, to = $('to').value;
   if (!from || !to) return;
   inflight?.abort();
@@ -241,7 +243,7 @@ async function load() {
   $('dot').className = 'dot loading';
   $('status').textContent = 'Hämtar kalendrar…';
   try {
-    const res = await fetch(`api/report?from=${from}&to=${to}`, { signal: inflight.signal });
+    const res = await fetch(`api/report?from=${from}&to=${to}${fresh ? '&fresh=1' : ''}`, { signal: inflight.signal });
     const body = await res.json();
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
     state.data = body;
@@ -389,8 +391,14 @@ $('bars').addEventListener('mousemove', (e) => {
 $('bars').addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 
 // Följ med i tiden: en förinställd period (t.ex. "Denna vecka") räknas om vid varje uppdatering.
-setInterval(() => (state.preset ? applyPreset(state.preset) : load()), REFRESH_MS);
-applyPreset('thisWeek');
+const refresh = (opts) => (state.preset ? applyPreset(state.preset, opts) : load(opts));
+setInterval(refresh, REFRESH_MS);
+// Färska data varje gång någon öppnar sidan eller går tillbaka till fliken.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refresh({ fresh: true });
+});
+$('refresh').addEventListener('click', () => refresh({ fresh: true }));
+applyPreset('thisWeek', { fresh: true });
 </script>
 </body>
 </html>

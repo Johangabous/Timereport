@@ -27,9 +27,10 @@ function loadCalendars() {
 
 const cache = new Map();
 
-async function fetchCalendar(url) {
+// fresh = true hoppar över cachen, t.ex. när någon öppnar dashboarden.
+async function fetchCalendar(url, fresh) {
   const hit = cache.get(url);
-  if (hit && Date.now() - hit.at < CACHE_SECONDS * 1000) return hit.parsed;
+  if (!fresh && hit && Date.now() - hit.at < CACHE_SECONDS * 1000) return hit.parsed;
   const res = await fetch(url.replace(/^webcals?:\/\//i, 'https://'), {
     headers: { 'User-Agent': 'faktmall-tidsrapport' },
   });
@@ -54,7 +55,7 @@ async function report(query) {
   const to = new Date(toDay.getFullYear(), toDay.getMonth(), toDay.getDate() + 1);
 
   const configured = loadCalendars();
-  const results = await Promise.allSettled(configured.map((c) => fetchCalendar(c.url)));
+  const results = await Promise.allSettled(configured.map((c) => fetchCalendar(c.url, query.get('fresh') === '1')));
   const calendars = [];
   const errors = [];
   results.forEach((r, i) => {
